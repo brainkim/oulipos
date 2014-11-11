@@ -6,28 +6,18 @@ var farts = require('./farts');
 require('./csshake.min.css');
 
 var ContentEditable = React.createClass({
+  paste(ev) {
+    ev.preventDefault();
+  },
+
   render() {
     return this.transferPropsTo(
-      <div 
-        onInput={this.emitChange} 
-        onBlur={this.emitChange}
-        contentEditable
-        dangerouslySetInnerHTML={{__html: this.props.html}}>
-      </div>
+      <pre
+        style={{whitespace: 'pre'}}
+        contentEditable={this.props.editable}
+        onPaste={this.paste}
+        dangerouslySetInnerHTML={{__html: this.props.html}} />
     );
-  },
-
-  shouldComponentUpdate(nextProps){
-    return nextProps.html !== this.getDOMNode().innerHTML;
-  },
-
-  emitChange(ev) {
-    var html = this.getDOMNode().innerHTML;
-    if (this.props.onChange && html !== this.lastHtml) {
-      ev.target.value = html;
-      this.props.onChange(ev);
-    }
-    this.lastHtml = html;
   }
 });
 
@@ -78,28 +68,31 @@ var Lipogram = React.createClass({
   },
 
   leaveParkingGarage() {
+    window.removeEventListener('keydown', this.lockKeyboard, true);
     this.setState({
       locked: false
     });
+    $(this.refs.editor.getDOMNode()).focus();
   },
 
   validateParking(ev) {
-    if (! this.state.locked) {
-      var ch = String.fromCharCode(ev.keyCode).toLowerCase();
-      if (this.state.forbidden.contains(ch)) {
-        farts(this.leaveParkingGarage);
-        ev.preventDefault();
-        this.setState({
-          locked: true
-        });
-      }
+    var ch = String.fromCharCode(ev.keyCode).toLowerCase();
+    if (this.state.forbidden.contains(ch)) {
+      ev.preventDefault();
+      window.addEventListener('keydown', this.lockKeyboard, true);
+      farts(this.leaveParkingGarage);
+      this.setState({
+        locked: true
+      });
     }
   },
 
   change(ev) {
+    var text = ev.target.innerText;
+    console.log(text, this.state.locked);
     if (!this.state.locked) {
       this.setState({
-        poem: ev.target.value
+        poem: text 
       });
     }
   },
@@ -124,16 +117,14 @@ var Lipogram = React.createClass({
   },
 
   render() {
-    console.log(this.state.locked);
     return (
       <div>
-        <textarea
+        <ContentEditable
           onKeyDown={this.validateParking}
-          onChange={this.change}
-          value={this.state.poem}
+          onInput={this.change}
+          editable={!this.state.locked}
           className={this.state.locked ? 'shake shake-hard' : ''}
-          rows="30"
-          cols="50"
+          html={this.state.poem}
           ref="editor" />
         <CharSelector
           chars={ascii}
