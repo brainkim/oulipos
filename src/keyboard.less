@@ -1,0 +1,36 @@
+.keyboard {
+  font-size: 24px;
+  font-family: sans-serif;
+  color: #555;
+  height: 200px;
+  width: 800px;
+  padding: 20px;
+}
+
+.generate-keyboard__row(@n, @i: 0) when (@i =< @n) {
+  .keyboard__row--@{i} {
+    margin-left: unit(@i * 1.0, em);
+  }
+
+  .generate-keyboard__row(@n, (@i + 1));
+}
+
+.generate-keyboard__row(4);
+
+.keyboard__row {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.keyboard__char {
+  position: relative;
+  width: 1.4em;
+  height: 1.4em;
+  display: inline-block;
+  line-height: 1.5em;
+  margin: 0 0.5em;
+  cursor: pointer;
+  border: 1px solid #ddd;
+  border-radius: 0.2em;
+  text-align: center;
+}

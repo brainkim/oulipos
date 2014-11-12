@@ -1,47 +1,93 @@
 /** @jsx React.DOM */
 var $ = require('jquery');
 var React = require('react');
-var {Set, Range} = require('immutable');
+var {Set, Range, List, Map} = require('immutable');
 var farts = require('./farts');
+var Scribe = require('scribe-editor');
+var CurlyQuotes = require('scribe-plugin-curly-quotes');
 require('./csshake.min.css');
+require('./keyboard.less');
+require('./corpse.less');
+
+function isModified(ev) {
+  return !!(ev.metaKey || ev.altKey || ev.ctrlKey || ev.shiftKey);
+}
+
+$.fn.shake = function(duration) { 
+  duration = duration != null ? duration : 200;
+  this.each(() => {
+    this.addClass('shake shake-sloww shake-constant');
+    setTimeout(() => {
+      this.removeClass('shake shake-slow shake-constant');
+    }, duration);
+  });
+};
 
 var ContentEditable = React.createClass({
-  paste(ev) {
+  preventPaste(ev) {
     ev.preventDefault();
   },
 
   render() {
     return this.transferPropsTo(
-      <pre
-        style={{whitespace: 'pre'}}
-        contentEditable={this.props.editable}
-        onPaste={this.paste}
-        dangerouslySetInnerHTML={{__html: this.props.html}} />
-    );
-  }
-});
-
-var CharSelector = React.createClass({
-  render() {
-    var chars = this.props.chars.map((ch) => {
-      return (
-        <span
-          onClick={this.selectChar.bind(null, ch)}
-          style={this.props.selected.contains(ch) ? {color: 'red'} : {}}>
-          {ch}
-        </span>
-      );
-    }).toArray();
-
-    return (
-      <div>
-        {chars}
-      </div>
+      <div style={{whiteSpace: 'pre'}}
+           className="corpse"
+           spellcheck={false}
+           onPaste={this.preventPaste} />
     );
   },
 
-  selectChar(ch, ev) {
-    ev.char = ch;
+  componentDidMount() {
+    this.getDOMNode().spellcheck = false;
+    var scribe = this.scribe = new Scribe(this.getDOMNode(), {
+      allowBlockElements: false
+    });
+    scribe.use(CurlyQuotes());
+  }
+});
+
+var QWERTY = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'].map((row) => {
+  return row.split('');
+});
+
+var KeyBoard = React.createClass({
+  render() {
+    var chars = QWERTY.map((row, rowIndex) => {
+      var keys = row.map((ch) => {
+        return (
+          <span key={ch}
+                ref={ch.toLowerCase()}
+                onClick={this._onKeyClick.bind(null, ch)}
+                className="keyboard__char"
+                style={this.props.selected.contains(ch) ? {color: 'red'} : {}}>
+            {ch.toUpperCase()}
+          </span>
+        );
+      });
+      return (
+        <div className={"keyboard__row keyboard__row--"+ rowIndex}>
+          { keys }
+        </div>
+      );
+    });
+
+    return (
+      <div className="keyboard" tabIndex="2" onKeyDown={this._onKeyDown}>{chars}</div>
+    );
+  },
+
+  _onKeyDown(ev) {
+    if (!isModified(ev)) {
+      var ref = this.refs[String.fromCharCode(ev.keyCode).toLowerCase()];
+      if (ref != null) {
+        ev.target = ref.getDOMNode();
+        this.props.onCharSelect(ev);
+      }
+    }
+  },
+
+  _onKeyClick(ch, ev) {
+    ev.keyCode = ch.charCodeAt(0);
     if (this.props.onCharSelect) {
       this.props.onCharSelect(ev);
     }
@@ -56,6 +102,19 @@ function cleanPoem(poem, forbidden) {
 
 var ascii = Range('a'.charCodeAt(0), 'z'.charCodeAt(0) + 1).map((i) => {
   return String.fromCharCode(i);
+});
+
+var emptyRequirements = Map();
+
+var Anagram = React.createClass({
+  getInitialState() {
+    return {
+      requirements: Map()
+    };
+  },
+  render() {
+    return null;
+  }
 });
 
 var Lipogram = React.createClass({
@@ -76,37 +135,34 @@ var Lipogram = React.createClass({
   },
 
   validateParking(ev) {
-    var ch = String.fromCharCode(ev.keyCode).toLowerCase();
-    if (this.state.forbidden.contains(ch)) {
+    if (this.state.locked) {
       ev.preventDefault();
-      window.addEventListener('keydown', this.lockKeyboard, true);
-      farts(this.leaveParkingGarage);
-      this.setState({
-        locked: true
-      });
     }
-  },
-
-  change(ev) {
-    var text = ev.target.innerText;
-    console.log(text, this.state.locked);
-    if (!this.state.locked) {
-      this.setState({
-        poem: text 
-      });
+    else {
+      var ch = String.fromCharCode(ev.keyCode).toLowerCase();
+      if (this.state.forbidden.contains(ch)) {
+        ev.preventDefault();
+        window.addEventListener('keydown', this.lockKeyboard, true);
+        farts(this.leaveParkingGarage);
+        this.setState({
+          locked: true
+        });
+      }
     }
   },
 
   selectChar(ev) {
     if (!this.state.locked) {
+      var ch = String.fromCharCode(ev.keyCode).toLowerCase();
       var forbidden = this.state.forbidden;
-      forbidden = forbidden.contains(ev.char)
-        ? forbidden.remove(ev.char)
-        : forbidden.add(ev.char);
+      forbidden = forbidden.contains(ch)
+        ? forbidden.remove(ch)
+        : forbidden.add(ch);
       this.setState({
         forbidden: forbidden,
         poem: cleanPoem(this.state.poem, forbidden)
       });
+      $(ev.target).shake();
     }
   },
 
@@ -121,13 +177,11 @@ var Lipogram = React.createClass({
       <div>
         <ContentEditable
           onKeyDown={this.validateParking}
-          onInput={this.change}
-          editable={!this.state.locked}
-          className={this.state.locked ? 'shake shake-hard' : ''}
-          html={this.state.poem}
+          onChange={this.updatePoem}
+          className={this.state.locked ? 'shake shake-horizontal shake-constant' : ''}
+          text={this.state.poem}
           ref="editor" />
-        <CharSelector
-          chars={ascii}
+        <KeyBoard
           selected={this.state.forbidden}
           onCharSelect={this.selectChar} />
       </div>
