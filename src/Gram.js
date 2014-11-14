@@ -301,10 +301,10 @@ var Anagram = React.createClass({
       var text = ev.target.value;
       var newReqs = this.parseText(text);
       var isExhausted = newReqs.some((v, k) => {
-        return this.state.reqs.get(k, 0) - v <= 0;
+        return this.state.reqs.get(k, 0) - v <= -1;
       });
-      var difference = this.state.reqs.mergeWith(function(o, n) { return o - n; }, newReqs);
       if (!isExhausted) {
+        var difference = this.state.reqs.mergeWith(function(o, n) { return o - n; }, newReqs);
         this.setState({
           destMaterial: text,
           difference: difference
@@ -316,8 +316,17 @@ var Anagram = React.createClass({
     }
   },
 
+  componentDidMount() {
+    $(this.refs.source.getDOMNode()).focus();
+  },
+
+  componentDidUpdate(prevProps) {
+    if (!prevProps.locked) {
+      $(this.refs.dest.getDOMNode()).focus();
+    }
+  },
+
   start() {
-    console.log(this.state.reqs);
     this.setState({
       setup: false,
       forbidden: QWERTY_SET.subtract(Set(this.state.reqs.keys()))
@@ -326,7 +335,7 @@ var Anagram = React.createClass({
 
   leaveParkingGarage() {
     this.setState({ locked: false });
-    $(this.refs.editor.getDOMNode()).focus();
+    $(this.refs.dest.getDOMNode()).focus();
   },
   
   goCrazyAndMakeFartNoise() {
@@ -336,7 +345,7 @@ var Anagram = React.createClass({
 
   validateParking(ev) {
     if (!isModified(ev)) {
-      if (this.state.locked || !this.state.allowed.contains(String.fromCharCode(ev.keyCode).toLowerCase())) {
+      if (this.state.locked || this.state.forbidden.contains(String.fromCharCode(ev.keyCode).toLowerCase())) {
         ev.preventDefault();
         this.goCrazyAndMakeFartNoise();
       }
@@ -354,12 +363,13 @@ var Anagram = React.createClass({
           style={this.state.setup ? {} : {backgroundColor: 'red'}}
           onChange={this.changeSource}
           value={this.state.sourceMaterial}
+          ref="source"
           rows="30"
           cols="50"/>
         <textarea
           disabled={this.state.setup}
           style={this.state.setup ? {backgroundColor: 'red'} : {}}
-          ref="editor"
+          ref="dest"
           onKeyDown={this.validateParking}
           onChange={this.changeDest}
           value={this.state.destMaterial}

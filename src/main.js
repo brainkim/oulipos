@@ -15,8 +15,6 @@ var App = React.createClass({
       <div>
         <header>
           <ul>
-            <li><Link to="home">Home</Link></li>
-            <li><Link to="about">About</Link></li>
             <li><Link to="lipogram">Lipograms</Link></li>
             <li><Link to="anagram">Anagrams</Link></li>
           </ul>
@@ -31,10 +29,8 @@ var App = React.createClass({
 React.renderComponent((
   <Routes location="hash">
     <Route path="/" handler={App}>
-      <Route name="home" handler={Home} />
-      <Route name="anagram" handler={Anagram} />
       <Route name="lipogram" handler={Lipogram} />
-      <Route name="about" handler={About} />
+      <Route name="anagram" handler={Anagram} />
     </Route>
   </Routes>
 ), document.body);
